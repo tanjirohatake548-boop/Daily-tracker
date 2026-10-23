@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Target Pro Tracker</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.35);
+      --success: #10b981;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 16px; min-height: 100vh; }
+    .container { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    /* Date Selector */
+    .date-row { display: flex; justify-content: space-between; align-items: center; }
+    .date-input {
+      background: #1e293b;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    /* Progress Widget */
+    .progress-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; }
+    .progress-bar-bg { width: 100%; height: 10px; background: #334155; border-radius: 8px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--success)); transition: width 0.4s ease; }
+
+    /* Input Section */
+    .input-box { display: flex; gap: 8px; }
+    input[type="text"] {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    .btn-add {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0 16px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+
+    /* Task List */
+    .task-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      animation: fadeIn 0.2s ease;
+    }
+    .task-item-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+    .task-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--success); cursor: pointer; }
+    .task-text { font-size: 14px; word-break: break-word; }
+    .task-text.completed { text-decoration: line-through; color: var(--muted); }
+    .delete-btn { background: none; border: none; color: #ef4444; font-size: 18px; cursor: pointer; padding: 0 4px; }
+
+    /* Graph Section */
+    .graph-title { font-size: 13px; color: var(--muted); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .graph-bars { display: flex; justify-content: space-between; align-items: flex-end; height: 110px; padding-top: 10px; }
+    .bar-col { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+    .bar-track { width: 14px; height: 80px; background: #334155; border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
+    .bar-value { width: 100%; background: var(--accent); border-radius: 6px; transition: height 0.4s ease; }
+    .bar-label { font-size: 10px; color: var(--muted); }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Date Selector -->
+  <div class="card date-row">
+    <div>
+      <div style="font-size: 12px; color: var(--muted);">तारीख़ चुनें</div>
+      <div id="dateLabel" style="font-weight: 600; font-size: 16px;">आज के टास्क</div>
+    </div>
+    <input type="date" id="selectedDate" class="date-input" onchange="switchDate()">
+  </div>
+
+  <!-- Today's Progress Card -->
+  <div class="card">
+    <div class="progress-header">
+      <span id="progressSummary">0 / 0 पूरा हुआ</span>
+      <span id="progressPercent" style="font-weight: 700; color: var(--accent);">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div id="progressBar" class="progress-bar-fill"></div>
+    </div>
+  </div>
+
+  <!-- Input Card -->
+  <div class="card input-box">
+    <input type="text" id="targetInput" placeholder="नया टार्गेट लिखें..." onkeydown="if(event.key === 'Enter') addTask()">
+    <button class="btn-add" onclick="addTask()">+ जोड़ें</button>
+  </div>
+
+  <!-- Task List Card -->
+  <div class="card">
+    <ul id="taskList" class="task-list"></ul>
+    <div id="emptyMessage" style="text-align: center; color: var(--muted); font-size: 13px; display: none; padding: 12px 0;">
+      इस दिन के लिए कोई टार्गेट नहीं है।
+    </div>
+  </div>
+
+  <!-- 7-Day Performance Graph -->
+  <div class="card">
+    <div class="graph-title">पिछले 7 दिनों का प्रदर्शन</div>
+    <div class="graph-bars" id="weeklyGraph"></div>
+  </div>
+</div>
+
+<script>
+  // Storage schema: { "YYYY-MM-DD": [ { text: "...", done: false }, ... ] }
+  let store = JSON.parse(localStorage.getItem('target_hub_db') || '{}');
+
+  const dateInput = document.getElementById('selectedDate');
+  const dateLabel = document.getElementById('dateLabel');
+
+  function getTodayString() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // Set default date to today on load
+  let activeDate = getTodayString();
+  dateInput.value = activeDate;
+
+  function switchDate() {
+    activeDate = dateInput.value;
+    const today = getTodayString();
+    
+    if (activeDate === today) {
+      dateLabel.innerText = "आज के टास्क";
+    } else {
+      const parts = activeDate.split('-');
+      dateLabel.innerText = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    renderAll();
+  }
+
+  function addTask() {
+    const input = document.getElementById('targetInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    if (!store[activeDate]) store[activeDate] = [];
+    store[activeDate].push({ text, done: false });
+    input.value = '';
+    saveAndRender();
+  }
+
+  function toggleTask(index) {
+    store[activeDate][index].done = !store[activeDate][index].done;
+    saveAndRender();
+  }
+
+  function deleteTask(index) {
+    store[activeDate].splice(index, 1);
+    if (store[activeDate].length === 0) delete store[activeDate];
+    saveAndRender();
+  }
+
+  function saveAndRender() {
+    localStorage.setItem('target_hub_db', JSON.stringify(store));
+    renderAll();
+  }
+
+  function renderAll() {
+    renderList();
+    renderProgress();
+    renderGraph();
+  }
+
+  function renderList() {
+    const list = document.getElementById('taskList');
+    const emptyMsg = document.getElementById('emptyMessage');
+    list.innerHTML = '';
+    const items = store[activeDate] || [];
+
+    if (items.length === 0) {
+      emptyMsg.style.display = 'block';
+    } else {
+      emptyMsg.style.display = 'none';
+      items.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.className = 'task-item';
+        li.innerHTML = `
+          <div class="task-item-left">
+            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleTask(${idx})">
+            <span class="task-text ${item.done ? 'completed' : ''}">${escapeHtml(item.text)}</span>
+          </div>
+          <button class="delete-btn" onclick="deleteTask(${idx})">&times;</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+  }
+
+  function renderProgress() {
+    const items = store[activeDate] || [];
+    const total = items.length;
+    const completed = items.filter(t => t.done).length;
+    const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+    document.getElementById('progressSummary').innerText = `${completed} / ${total} पूरा हुआ`;
+    document.getElementById('progressPercent').innerText = `${percent}%`;
+    document.getElementById('progressBar').style.width = `${percent}%`;
+  }
+
+  function renderGraph() {
+    const graph = document.getElementById('weeklyGraph');
+    graph.innerHTML = '';
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const key = `${y}-${m}-${day}`;
+
+      const items = store[key] || [];
+      const total = items.length;
+      const completed = items.filter(t => t.done).length;
+      const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+      const col = document.createElement('div');
+      col.className = 'bar-col';
+      col.innerHTML = `
+        <div style="font-size: 9px; color: var(--muted);">${pct}%</div>
+        <div class="bar-track">
+          <div class="bar-value" style="height: ${pct}%;"></div>
+        </div>
+        <div class="bar-label">${day}</div>
+      `;
+      graph.appendChild(col);
+    }
+  }
+
+  function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, function(m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+    });
+  }
+
+  renderAll();
+</script>
+
+</body>
+</html>
